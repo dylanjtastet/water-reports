@@ -2,6 +2,7 @@
 
 import subprocess
 import re
+import sys
 from bs4 import BeautifulSoup
 
 def printrow(rowmap, outfile):
@@ -49,7 +50,8 @@ def process_pdf(infile, addrfile, outfile, name, date):
 
 
 ##################  Script start ###############################
-subprocess.run(["curl","-o","directory.html", "-H", "User-Agent: Mozilla", "-L", "https://celr.ncpublichealth.com/InOrganicChemistry?client.rasclientId=566000283EH&filterBy=1&recentDay=5&docFrom=&docTo"])
+url = sys.argv[1]
+subprocess.run(["curl","-o","directory.html", "-H", "User-Agent: Mozilla", "-L", url])
 with open("directory.html") as doc:
     soup = BeautifulSoup(doc, features="html.parser")
 
