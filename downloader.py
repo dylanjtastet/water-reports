@@ -2,6 +2,7 @@
 import subprocess
 import argparse
 import re
+import time
 import sys
 import http
 from bs4 import BeautifulSoup
@@ -58,6 +59,10 @@ parser.add_argument("-o","--output", dest="filename", default="yams.csv", help="
 args = parser.parse_args()
 url = args.url
 filename = args.filename
+timestamp = str(time.time())
+addrfile = timestamp+"-addr.txt"
+pdffile = timestamp+"-yams.pdf"
+txtfile = timestamp+"-yams.txt"
 page = None
 try:
     page = request.urlopen(url).read()
@@ -77,11 +82,11 @@ with open(filename,"w") as csv:
         date = row.contents[5].string
         #Ignore no-names
         href = row.contents[3].a["href"]
-        subprocess.run(["curl","-o","yams.pdf", "-H", "User-Agent: Mozilla", "-L", "https://celr.ncpublichealth.com/"+href])
-        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%45,0,82,100", "-f", "CSV", "-o","yams.txt", "yams.pdf"])
-        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%20,55,30,100", "-f", "TSV", "-o","addr.txt", "yams.pdf"])
+        subprocess.run(["curl","-o", pdffile, "-H", "User-Agent: Mozilla", "-L", "https://celr.ncpublichealth.com/"+href, "--silent"])
+        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%45,0,82,100", "-f", "CSV", "-o" , txtfile, pdffile])
+        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%20,55,30,100", "-f", "TSV", "-o",addrfile, pdffile])
         try:
-            process_pdf("yams.txt", "addr.txt", csv, name, date)
+            process_pdf(txtfile, addrfile, csv, name, date)
         except Exception as e:
             print("PDF Parsing for "+name+" failed because "+str(e))
     
