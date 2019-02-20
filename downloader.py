@@ -6,12 +6,12 @@ from bs4 import BeautifulSoup
 
 def printrow(rowmap, outfile):
     data = []
-    for heading in ["name","address", "arsenic","chromium","lead","manganese","mercury",
+    for heading in ["name", "date", "address", "arsenic","chromium","lead","manganese","mercury",
     "ph","nitrate","nitrite"]:
         data.append(rowmap.get(heading,""))
     print(",".join(data), file=outfile)
 
-def process_pdf(infile, addrfile, outfile,name):
+def process_pdf(infile, addrfile, outfile, name, date):
     
     with open(addrfile) as f:
         lines = list(filter(lambda x: not (re.match("\"+", x) or re.match("^\s*$",x)), map(lambda x: x.replace("\"",""),f.read().splitlines())))
@@ -21,7 +21,8 @@ def process_pdf(infile, addrfile, outfile,name):
             addr = lines[-2]+" "+lines[-1]
         else:
             addr = "null"
-        rowmap = {"name":"\""+(lines[0] if re.match("\d+\.\s,\s*", name) else name) +"\"", "address":"\""+addr+"\""}
+        rowmap = {"name":"\""+(lines[0] if re.match("\d+\.\s,\s*", name) else name) +"\"", "address":"\""+addr+"\"",
+		 "date": "\""+ date +"\""}
     with open(infile) as f:
         fulltext = f.read()
 
@@ -48,24 +49,22 @@ def process_pdf(infile, addrfile, outfile,name):
 
 
 ##################  Script start ###############################
-subprocess.run(["curl","-o","directory.html", "-H", "User-Agent: Mozilla", "-L", "https://celr.ncpublichealth.com/InOrganicChemistry?client.rasclientId=566000283EH&filterBy=1&recentDay=5&docFrom=&docTo"], capture_output=False)
+subprocess.run(["curl","-o","directory.html", "-H", "User-Agent: Mozilla", "-L", "https://celr.ncpublichealth.com/InOrganicChemistry?client.rasclientId=566000283EH&filterBy=1&recentDay=5&docFrom=&docTo"])
 with open("directory.html") as doc:
     soup = BeautifulSoup(doc, features="html.parser")
 
 with open("yams.csv","w") as csv:
-    print("name, address, arsenic,chromium,lead,manganese,mercury,ph,nitrate,nitrite",file=csv)
+    print("name, date, address, arsenic,chromium,lead,manganese,mercury,ph,nitrate,nitrite",file=csv)
     for index, row in enumerate(soup.find_all(class_="row")[1:]): 
         name = row.contents[1].string
+        date = row.contents[5].string
         #Ignore no-names
         href = row.contents[3].a["href"]
-        subprocess.run(["curl","-o","yams.pdf", "-H", "User-Agent: Mozilla", "-L", "https://celr.ncpublichealth.com/"+href],
-        capture_output=False)
-        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%45,0,82,100", "-f", "CSV", "-o","yams.txt", "yams.pdf"], 
-        capture_output=True)
-        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%20,55,30,100", "-f", "TSV", "-o","addr.txt", "yams.pdf"], 
-        capture_output=True)
+        subprocess.run(["curl","-o","yams.pdf", "-H", "User-Agent: Mozilla", "-L", "https://celr.ncpublichealth.com/"+href])
+        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%45,0,82,100", "-f", "CSV", "-o","yams.txt", "yams.pdf"])
+        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%20,55,30,100", "-f", "TSV", "-o","addr.txt", "yams.pdf"])
         try:
-            process_pdf("yams.txt", "addr.txt", csv, name)
+            process_pdf("yams.txt", "addr.txt", csv, name, date)
         except Exception as e:
             print("PDF Parsing for "+name+" failed because "+str(e))
     
