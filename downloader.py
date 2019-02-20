@@ -1,9 +1,11 @@
 #! /Library/Frameworks/Python.framework/Versions/3.7/bin/python3
-
 import subprocess
+import argparse
 import re
 import sys
+import http
 from bs4 import BeautifulSoup
+from urllib import request
 
 def printrow(rowmap, outfile):
     data = []
@@ -50,12 +52,25 @@ def process_pdf(infile, addrfile, outfile, name, date):
 
 
 ##################  Script start ###############################
-url = sys.argv[1]
-subprocess.run(["curl","-o","directory.html", "-H", "User-Agent: Mozilla", "-L", url])
-with open("directory.html") as doc:
-    soup = BeautifulSoup(doc, features="html.parser")
+parser = argparse.ArgumentParser(description="Extract well water data from an NC county lab")
+parser.add_argument("url", help="A url to the directory page containing links to pdfs")
+parser.add_argument("-o","--output", dest="filename", default="yams.csv", help="The filename for output csv (include the .csv). Default is yams.csv")
+args = parser.parse_args()
+url = args.url
+filename = args.filename
+page = None
+try:
+    page = request.urlopen(url).read()
+except (http.client.IncompleteRead) as e:
+    page = e.partial
+except:
+    print("Failed to load directory page -- Aborting")
+    sys.exit(0)
 
-with open("yams.csv","w") as csv:
+page = page.decode("utf-8")
+
+soup = BeautifulSoup(page,features="html.parser")
+with open(filename,"w") as csv:
     print("name, date, address, arsenic,chromium,lead,manganese,mercury,ph,nitrate,nitrite",file=csv)
     for index, row in enumerate(soup.find_all(class_="row")[1:]): 
         name = row.contents[1].string
