@@ -75,7 +75,7 @@ except:
 page = page.decode("utf-8")
 
 soup = BeautifulSoup(page,features="html.parser")
-with open(filename,"w") as csv:
+with open(filename,"w",1) as csv:
     print("name, date, address, arsenic,chromium,lead,manganese,mercury,ph,nitrate,nitrite",file=csv)
     for index, row in enumerate(soup.find_all(class_="row")[1:]): 
         name = row.contents[1].string
