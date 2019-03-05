@@ -5,12 +5,21 @@ import re
 import time
 import sys
 import http
+import atexit
+import os
 from bs4 import BeautifulSoup
 from urllib import request
 
+def exit_proc():
+    os.remove(addrfile)
+    os.remove(pdffile)
+    os.remove(txtfile)
+def setOrDefault(match):
+    return match[1] if match is not None else ""
+
 def printrow(rowmap, outfile):
     data = []
-    for heading in ["name", "date", "address", "arsenic","chromium","lead","manganese","mercury",
+    for heading in ["name", "date", "address", "sample type", "sampling point", "sample source", "arsenic","chromium","lead","manganese","mercury",
     "ph","nitrate","nitrite"]:
         data.append(rowmap.get(heading,""))
     print(",".join(data), file=outfile)
@@ -21,7 +30,6 @@ def process_pdf(infile, addrfile, outfile, name, date):
         lines = list(filter(lambda x: not (re.match("\"+", x) or re.match("^\s*$",x)), map(lambda x: x.replace("\"",""),f.read().splitlines())))
         print(lines)
         if len(lines) > 1:
-            #addr = lines[-2:]
             addr = lines[-2]+" "+lines[-1]
         else:
             addr = "null"
@@ -29,7 +37,10 @@ def process_pdf(infile, addrfile, outfile, name, date):
 		 "date": "\""+ date +"\""}
     with open(infile) as f:
         fulltext = f.read()
-
+    
+    rowmap["sample type"] = setOrDefault(re.search("Sample\s*Type:(?:,|\s)*(.*?)(?:,|Sampling Point)",fulltext, re.IGNORECASE)).strip()
+    rowmap["sampling point"] = setOrDefault(re.search("Sampling\s*Point:(?:,|\s)*(.*?)(?:,|Well Permit)", fulltext, re.IGNORECASE)).strip()
+    rowmap["sample source"] = setOrDefault(re.search("Sample\s*Source:(?:,|\s)*(.*?)(?:,|Receipt Temp)",fulltext, re.IGNORECASE)).strip()
     cutoff = re.sub("\r\n","\n", fulltext)
     cutoff = cutoff.replace("\"","")
     cutoff = re.sub("^.*Page.*\n", "", cutoff, flags=re.MULTILINE)
@@ -56,13 +67,16 @@ def process_pdf(infile, addrfile, outfile, name, date):
 parser = argparse.ArgumentParser(description="Extract well water data from an NC county lab")
 parser.add_argument("url", help="A url to the directory page containing links to pdfs")
 parser.add_argument("-o","--output", dest="filename", default="yams.csv", help="The filename for output csv (include the .csv). Default is yams.csv")
+parser.add_argument("--shm", action="store_true")
 args = parser.parse_args()
 url = args.url
 filename = args.filename
 timestamp = str(time.time())
-addrfile = timestamp+"-addr.txt"
-pdffile = timestamp+"-yams.pdf"
-txtfile = timestamp+"-yams.txt"
+prefix = ("/dev/shm/" if args.shm else "")+timestamp
+addrfile = prefix+"-addr.txt"
+pdffile = prefix+"-yams.pdf"
+txtfile = prefix+"-yams.txt"
+atexit.register(exit_proc)
 page = None
 try:
     page = request.urlopen(url).read()
@@ -76,14 +90,14 @@ page = page.decode("utf-8")
 
 soup = BeautifulSoup(page,features="html.parser")
 with open(filename,"w",1) as csv:
-    print("name, date, address, arsenic,chromium,lead,manganese,mercury,ph,nitrate,nitrite",file=csv)
+    print("name, date, address, sample type, sampling point, sample source, arsenic,chromium,lead,manganese,mercury,ph,nitrate,nitrite",file=csv)
     for index, row in enumerate(soup.find_all(class_="row")[1:]): 
         name = row.contents[1].string
         date = row.contents[5].string
         #Ignore no-names
         href = row.contents[3].a["href"]
         subprocess.run(["curl","-o", pdffile, "-H", "User-Agent: Mozilla", "-L", "https://celr.ncpublichealth.com/"+href, "--silent"])
-        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%45,0,82,100", "-f", "CSV", "-o" , txtfile, pdffile])
+        subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%30,0,82,100", "-f", "CSV", "-o" , txtfile, pdffile])
         subprocess.run(["java", "-jar", "tabula-1.0.2-jar-with-dependencies.jar", "-a", "%20,55,30,100", "-f", "TSV", "-o",addrfile, pdffile])
         try:
             process_pdf(txtfile, addrfile, csv, name, date)
