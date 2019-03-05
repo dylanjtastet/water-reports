@@ -1,4 +1,4 @@
-.git
-.csv
-.html
-.pdf
+*.git
+*.csv
+*.html
+*.pdf
