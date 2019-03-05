@@ -15,7 +15,7 @@ def exit_proc():
     os.remove(pdffile)
     os.remove(txtfile)
 def setOrDefault(match):
-    return match[1] if match is not None else ""
+    return match.group(1) if match is not None else ""
 
 def printrow(rowmap, outfile):
     data = []
