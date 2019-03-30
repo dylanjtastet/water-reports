@@ -94,7 +94,7 @@ page = page.decode("utf-8")
 soup = BeautifulSoup(page,features="html.parser")
 with open(filename,"w",1) as csv:
     print("name, date, address, sample type, sampling point, sample source, arsenic,chromium,lead,manganese,mercury,ph,nitrate,nitrite",file=csv)
-    for index, row in enumerate(soup.find_all(class_="row")[16:17]): 
+    for index, row in enumerate(soup.find_all(class_="row")[1:]): 
         name = row.contents[1].string
         date = row.contents[5].string
         #Ignore no-names
