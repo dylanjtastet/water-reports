@@ -30,7 +30,10 @@ def process_pdf(infile, addrfile, outfile, name, date):
         lines = list(filter(lambda x: not (re.match("\"+", x) or re.match("^\s*$",x)), map(lambda x: x.replace("\"",""),f.read().splitlines())))
         print(lines)
         if len(lines) > 1:
-            addr = lines[-2]+" "+lines[-1]
+            if re.match(".*\s+lot\s+.*",lines[-2],re.IGNORECASE):
+                addr = lines[-3]+" "+lines[-2]+" "+lines[-1]
+            else:
+                addr = lines[-2]+" "+lines[-1]
         else:
             addr = "null"
         rowmap = {"name":"\""+(lines[0] if re.match("\d+\.\s,\s*", name) else name) +"\"", "address":"\""+addr+"\"",
@@ -91,7 +94,7 @@ page = page.decode("utf-8")
 soup = BeautifulSoup(page,features="html.parser")
 with open(filename,"w",1) as csv:
     print("name, date, address, sample type, sampling point, sample source, arsenic,chromium,lead,manganese,mercury,ph,nitrate,nitrite",file=csv)
-    for index, row in enumerate(soup.find_all(class_="row")[1:]): 
+    for index, row in enumerate(soup.find_all(class_="row")[16:17]): 
         name = row.contents[1].string
         date = row.contents[5].string
         #Ignore no-names
